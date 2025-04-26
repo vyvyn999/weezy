@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piano Tiles Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #000;
+            overflow: hidden;
+            height: 100vh;
+            touch-action: manipulation;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #video-background {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            opacity: 0.7;
+            filter: brightness(1.1);
+        }
+
+        #game-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 100%);
+        }
+
+        .lanes-container {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 360px;
+            height: 100%;
+            z-index: 3;
+            display: flex;
+        }
+
+        .lane {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            border-right: 2px solid rgba(255, 255, 255, 0.25);
+            transition: background-color 0.3s;
+        }
+
+        .lane:last-child {
+            border-right: none;
+        }
+
+        .lane.active {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .tile {
+            width: 100%;
+            height: 140px;
+            background: linear-gradient(to bottom, #333, #222);
+            position: absolute;
+            top: -140px;
+            border-radius: 6px;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.8);
+            transition: transform 0.05s ease, background 0.1s;
+            border-bottom: 3px solid rgba(255, 64, 129, 0.7);
+        }
+        
+        .tile:active, .tile.clicked {
+            transform: scale(0.95);
+            background: linear-gradient(to bottom, #444, #333);
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 28px;
+            z-index: 5;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            background-color: rgba(0, 0, 0, 0.4);
+            padding: 5px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(33, 33, 33, 0.85) 0%, rgba(0, 0, 0, 0.95) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            color: white;
+        }
+
+        #start-screen h1 {
+            font-size: 52px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 15px rgba(124, 77, 255, 0.8);
+            background: linear-gradient(to right, #ff4081, #7c4dff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glow 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 5px rgba(124, 77, 255, 0.8);
+            }
+            to {
+                text-shadow: 0 0 20px rgba(255, 64, 129, 0.8);
+            }
+        }
+
+        .song-info {
+            font-size: 20px;
+            margin-bottom: 30px;
+            color: #ddd;
+            text-align: center;
+        }
+
+        .mode-selector {
+            display: flex;
+            margin: 30px 0;
+            gap: 20px;
+        }
+
+        .mode-option {
+            padding: 12px 24px;
+            background-color: rgba(124, 77, 255, 0.2);
+            color: white;
+            border: 2px solid #7c4dff;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-option:hover {
+            background-color: rgba(124, 77, 255, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 14px rgba(124, 77, 255, 0.4);
+        }
+
+        .mode-option.selected {
+            background-color: rgba(124, 77, 255, 0.6);
+            border-color: #ff4081;
+            box-shadow: 0 0 15px rgba(124, 77, 255, 0.5);
+        }
+
+        .mode-option:after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(45deg);
+            transition: all 0.5s;
+            opacity: 0;
+        }
+
+        .mode-option.selected:after {
+            animation: shine 1.5s infinite;
+        }
+
+        @keyframes shine {
+            0% {
+                opacity: 0;
+                left: -50%;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 0;
+                left: 100%;
+            }
+        }
+
+        #play-btn {
+            padding: 15px 60px;
+            font-size: 22px;
+            background: linear-gradient(45deg, #ff4081, #7c4dff);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 64, 129, 0.6);
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        #play-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(255, 64, 129, 0.7);
+        }
+
+        #play-btn:active {
+            transform: translateY(1px);
+        }
+
+        #play-btn:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.1);
+            transform-origin: bottom center;
+            transform: scaleY(0);
+            transition: transform 0.3s;
+            z-index: -1;
+        }
+
+        #play-btn:hover:after {
+            transform: scaleY(1);
+        }
+
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(33, 33, 33, 0.85) 0%, rgba(0, 0, 0, 0.95) 100%);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            color: white;
+        }
+
+        #game-over h1 {
+            font-size: 60px;
+            margin-bottom: 20px;
+            color: #ff4081;
+            text-shadow: 0 0 15px rgba(255, 64, 129, 0.6);
+        }
+
+        #final-score-container {
+            background-color: rgba(124, 77, 255, 0.2);
+            border: 2px solid #7c4dff;
+            border-radius: 10px;
+            padding: 15px 30px;
+            margin: 20px 0;
+        }
+
+        #final-score {
+            font-size: 38px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        #restart-btn {
+            padding: 15px 50px;
+            font-size: 20px;
+            background: linear-gradient(45deg, #7c4dff, #448aff);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(124, 77, 255, 0.5);
+        }
+
+        #restart-btn:hover {
+            background: linear-gradient(45deg, #6a3de8, #2979ff);
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(124, 77, 255, 0.6);
+        }
+
+        .combo-indicator {
+            position: absolute;
+            color: #ff4081;
+            font-size: 28px;
+            font-weight: bold;
+            z-index: 5;
+            opacity: 0;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+            animation: fadeUp 1s ease-out;
+        }
+
+        @keyframes fadeUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            50% { transform: translateY(-20px) scale(1.2); opacity: 0.8; }
+            100% { transform: translateY(-40px) scale(1); opacity: 0; }
+        }
+
+        .key-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 8px 0;
+            border-radius: 5px;
+            z-index: 4;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <video id="video-background" src="like weezy.mp4" loop></video>
+        <div id="game-overlay"></div>
+        
+        <div class="lanes-container">
+            <div class="lane" id="lane0">
+                <div class="key-hint">D</div>
+            </div>
+            <div class="lane" id="lane1">
+                <div class="key-hint">F</div>
+            </div>
+            <div class="lane" id="lane2">
+                <div class="key-hint">J</div>
+            </div>
+            <div class="lane" id="lane3">
+                <div class="key-hint">K</div>
+            </div>
+        </div>
+        
+        <div id="score">Score: 0</div>
+        
+        <div id="start-screen">
+            <h1>Like Weezy Piano Tiles</h1>
+            <p class="song-info">"Like Weezy" by Playboi Carti. Made by Enea Nako</p>
+            
+            <div class="mode-selector">
+                <div class="mode-option selected" data-mode="click">Click Mode</div>
+                <div class="mode-option" data-mode="keyboard">Keyboard Mode</div>
+            </div>
+            
+            <button id="play-btn">PLAY</button>
+        </div>
+        
+        <div id="game-over">
+            <h1>Game Over</h1>
+            <div id="final-score-container">
+                <p>Your Score: <span id="final-score">0</span></p>
+            </div>
+            <button id="restart-btn">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const gameContainer = document.getElementById('game-container');
+            const lanes = document.querySelectorAll('.lane');
+            const keyHints = document.querySelectorAll('.key-hint');
+            const scoreDisplay = document.getElementById('score');
+            const startScreen = document.getElementById('start-screen');
+            const playBtn = document.getElementById('play-btn');
+            const gameOverScreen = document.getElementById('game-over');
+            const restartBtn = document.getElementById('restart-btn');
+            const finalScoreDisplay = document.getElementById('final-score');
+            const videoElement = document.getElementById('video-background');
+            const modeOptions = document.querySelectorAll('.mode-option');
+            
+            let score = 0;
+            let speed = 4; // Faster initial speed
+            let tileInterval = 350; // Faster tile generation
+            let gameRunning = false;
+            let activeTiles = [];
+            let lastSpawnTime = 0;
+            let animationFrameId = null;
+            let combo = 0;
+            let lastLane = -1;
+            let gameMode = 'click'; // Default game mode
+            
+            const keyMap = {
+                'd': 0,
+                'f': 1,
+                'j': 2,
+                'k': 3
+            };
+            
+            // Preload video
+            videoElement.load();
+            
+            // Mode selection
+            modeOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    modeOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    gameMode = this.dataset.mode;
+                    
+                    // Show/hide key hints based on selected mode
+                    if (gameMode === 'keyboard') {
+                        keyHints.forEach(hint => hint.style.display = 'block');
+                    } else {
+                        keyHints.forEach(hint => hint.style.display = 'none');
+                    }
+                });
+            });
+            
+            function resetGame() {
+                score = 0;
+                combo = 0;
+                speed = 4;
+                tileInterval = 350;
+                scoreDisplay.textContent = 'Score: 0';
+                
+                // Show/hide key hints based on selected mode
+                if (gameMode === 'keyboard') {
+                    keyHints.forEach(hint => hint.style.display = 'block');
+                } else {
+                    keyHints.forEach(hint => hint.style.display = 'none');
+                }
+                
+                // Clear all tiles
+                document.querySelectorAll('.tile').forEach(tile => tile.remove());
+                document.querySelectorAll('.combo-indicator').forEach(indicator => indicator.remove());
+                activeTiles = [];
+                
+                // Start video
+                videoElement.currentTime = 0;
+                videoElement.play();
+                videoElement.muted = false; // Unmute to play audio
+                
+                gameRunning = true;
+                lastSpawnTime = Date.now();
+                
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                }
+                
+                gameLoop();
+            }
+            
+            function createTile() {
+                // Avoid creating tiles in the same lane consecutively
+                let laneIndex;
+                do {
+                    laneIndex = Math.floor(Math.random() * 4);
+                } while (laneIndex === lastLane);
+                
+                lastLane = laneIndex;
+                const lane = lanes[laneIndex];
+                
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                tile.dataset.lane = laneIndex;
+                
+                tile.addEventListener('click', function() {
+                    if (gameRunning && gameMode === 'click') {
+                        hitTile(tile, laneIndex);
+                    }
+                });
+                
+                tile.addEventListener('touchstart', function(e) {
+                    if (gameRunning && gameMode === 'click') {
+                        e.preventDefault();
+                        hitTile(tile, laneIndex);
+                    }
+                });
+                
+                lane.appendChild(tile);
+                activeTiles.push({
+                    element: tile,
+                    position: -140,
+                    lane: laneIndex
+                });
+            }
+            
+            function showComboEffect(x, y, value) {
+                const indicator = document.createElement('div');
+                indicator.className = 'combo-indicator';
+                indicator.textContent = `+${value}`;
+                indicator.style.left = `${x}px`;
+                indicator.style.top = `${y}px`;
+                
+                gameContainer.appendChild(indicator);
+                
+                // Remove after animation completes
+                setTimeout(() => {
+                    if (indicator.parentNode) {
+                        indicator.parentNode.removeChild(indicator);
+                    }
+                }, 1000);
+            }
+            
+            function hitTile(tile, laneIndex) {
+                // Activate lane visual effect
+                lanes[laneIndex].classList.add('active');
+                setTimeout(() => lanes[laneIndex].classList.remove('active'), 150);
+                
+                // Add visual feedback to the tile
+                tile.classList.add('clicked');
+                
+                // Remove tile from DOM and array
+                const index = activeTiles.findIndex(t => t.element === tile);
+                if (index !== -1) {
+                    const position = activeTiles[index].position;
+                    activeTiles.splice(index, 1);
+                    
+                    // Calculate score based on timing
+                    let points = 1;
+                    
+                    // Increase combo
+                    combo++;
+                    if (combo > 5) {
+                        points = Math.min(10, Math.floor(combo / 5));
+                    }
+                    
+                    // Show combo effect
+                    const laneRect = lanes[laneIndex].getBoundingClientRect();
+                    const x = laneRect.x + laneRect.width / 2;
+                    const y = position + 70;
+                    showComboEffect(x, y, points);
+                    
+                    score += points;
+                    scoreDisplay.textContent = `Score: ${score}`;
+                    
+                    // Increase speed gradually
+                    if (score % 15 === 0) {
+                        speed += 0.2;
+                        tileInterval = Math.max(200, tileInterval - 10);
+                    }
+                }
+                
+                // Remove tile after a small delay to show the click effect
+                setTimeout(() => {
+                    if (tile.parentNode) {
+                        tile.parentNode.removeChild(tile);
+                    }
+                }, 50);
+            }
+            
+            function checkMissedTiles() {
+                const containerHeight = gameContainer.offsetHeight;
+                const tilesToRemove = [];
+                
+                activeTiles.forEach((tile, index) => {
+                    if (tile.position > containerHeight) {
+                        tilesToRemove.push(index);
+                    }
+                });
+                
+                if (tilesToRemove.length > 0) {
+                    combo = 0; // Reset combo on miss
+                    gameOver();
+                }
+            }
+            
+            function gameOver() {
+                gameRunning = false;
+                finalScoreDisplay.textContent = score;
+                gameOverScreen.style.display = 'flex';
+                
+                // Pause video
+                videoElement.pause();
+                
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+            }
+            
+            function gameLoop() {
+                const now = Date.now();
+                
+                // Update tiles positions
+                activeTiles.forEach(tile => {
+                    tile.position += speed;
+                    tile.element.style.top = `${tile.position}px`;
+                });
+                
+                // Check for missed tiles
+                checkMissedTiles();
+                
+                // Spawn new tiles
+                if (now - lastSpawnTime > tileInterval) {
+                    createTile();
+                    lastSpawnTime = now;
+                }
+                
+                if (gameRunning) {
+                    animationFrameId = requestAnimationFrame(gameLoop);
+                }
+            }
+            
+            // Keyboard controls
+            document.addEventListener('keydown', function(e) {
+                if (!gameRunning || gameMode !== 'keyboard') return;
+                
+                const key = e.key.toLowerCase();
+                const laneIndex = keyMap[key];
+                
+                if (laneIndex !== undefined) {
+                    // Find the bottom-most tile in this lane
+                    const laneTiles = activeTiles.filter(tile => parseInt(tile.lane) === laneIndex);
+                    
+                    if (laneTiles.length > 0) {
+                        // Find the tile that's furthest down the lane
+                        const bottomTile = laneTiles.reduce((prev, current) => {
+                            return (prev.position > current.position) ? prev : current;
+                        });
+                        
+                        // Only hit if the tile is visible (position > 0)
+                        if (bottomTile.position > 0) {
+                            hitTile(bottomTile.element, laneIndex);
+                        }
+                    }
+                }
+            });
+            
+            playBtn.addEventListener('click', function() {
+                startScreen.style.display = 'none';
+                resetGame();
+            });
+            
+            restartBtn.addEventListener('click', function() {
+                gameOverScreen.style.display = 'none';
+                resetGame();
+            });
+            
+            // Handle video ending
+            videoElement.addEventListener('ended', function() {
+                if (gameRunning) {
+                    videoElement.currentTime = 0;
+                    videoElement.play();
+                }
+            });
+            
+            // Prevent touchmove on mobile to avoid scrolling
+            gameContainer.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+
+            // Handle autoplay issues in some browsers
+            document.addEventListener('click', function() {
+                if (videoElement.paused && gameRunning) {
+                    videoElement.play();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
